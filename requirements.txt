@@ -1,0 +1,6 @@
+openai>=2.0.0
+python-dotenv>=1.0.0
+langchain-text-splitters>=0.0.1
+faiss-cpu>=1.7.0
+numpy>=1.20.0
+azure-search-documents>=11.8.0
