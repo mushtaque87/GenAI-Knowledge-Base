@@ -36,6 +36,7 @@ def read_and_chunk_document(file_path: str) -> list[str]:
     )
     
     chunks = text_splitter.split_text(raw_text)
+    print(f"Chunks generated from file: {chunks}\n\n")
     return chunks
 
 def generate_vectors_for_chunks(chunks: list[str]) -> list[dict]:
