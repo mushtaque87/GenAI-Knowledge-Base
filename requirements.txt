@@ -4,7 +4,8 @@ langchain-text-splitters>=0.0.1
 faiss-cpu>=1.7.0
 numpy>=1.20.0
 azure-search-documents>=11.8.0
-fastapi>=0.104.0
+fastapi>=0.111.0
 uvicorn>=0.15.0
 python-multipart>=0.0.9
 httpx
+pydantic>=2.7.4
