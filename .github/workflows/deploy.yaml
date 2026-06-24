@@ -1,0 +1,80 @@
+name: Enterprise AI Gateway CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  id-token: write # Required for secure passwordless Azure login
+
+jobs:
+  build-and-test:
+    name: "Build, Lint & Test"
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step A: Checkout repository code
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # Step B: Setup Python environment
+      - name: Set up Python Runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Step C: Install dependencies
+      - name: Install Project Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step D: Lint check the app files
+      - name: Run Syntax and Quality Linting
+        run: |
+          python -m py_compile src/app.py
+
+      # Step E: Build the Docker image (for verification)
+      - name: Build Verification Docker Image
+        run: |
+          docker build -t etisalat-ai-gateway:${{ github.sha }} -f src/Dockerfile .
+          echo "✅ Docker build compilation passed successfully!"
+
+  deploy:
+    name: "Provision & Deploy"
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    steps:
+      # 1. Checkout repository code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Log in to Azure using OIDC / GitHub Secrets
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # 3. Setup Terraform on the runner
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      # 4. Initialize and Apply Terraform
+      - name: Terraform Init & Apply
+        run: |
+          terraform -chdir=terrform init
+          terraform -chdir=terrform apply -auto-approve
