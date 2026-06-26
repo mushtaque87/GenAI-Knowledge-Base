@@ -6,6 +6,15 @@ terraform {
       version = "~> 3.0"
     }
   }
+
+  # Remote backend: stores terraform.tfstate in Azure Blob Storage
+  # so both local and GitHub Actions share the same state.
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "tfstatemushtaque"
+    container_name       = "tfstate"
+    key                  = "prod.terraform.tfstate"
+  }
 }
 
 provider "azurerm" {
