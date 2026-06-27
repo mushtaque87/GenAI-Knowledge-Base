@@ -46,6 +46,7 @@ vector_search_config = VectorSearch(
 fields = [
     SimpleField(name="id", type=SearchFieldDataType.String, key=True),
     SearchableField(name="content_text", type=SearchFieldDataType.String),
+    SimpleField(name="filename", type=SearchFieldDataType.String, filterable=True, facetable=True),
     SearchField(
         name="content_vector",
         type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
@@ -58,12 +59,22 @@ fields = [
 index_definition = SearchIndex(name=INDEX_NAME, fields=fields, vector_search=vector_search_config)
 
 # 6. Instantiate the Schema inside Azure Cloud
-print(f"Creating search index '{INDEX_NAME}' in Azure...")
+print(f"Checking for old index '{INDEX_NAME}' to drop...")
+try:
+    index_client.delete_index(INDEX_NAME)
+    print(f"🗑️ Successfully deleted old index '{INDEX_NAME}' to clear schema.")
+except Exception:
+    print("No existing index found to delete. Proceeding...")
+
+print(f"Creating fresh search index '{INDEX_NAME}' with 'filename' schema in Azure...")
 index_client.create_or_update_index(index_definition)
 
 # 7. Upload our Data Envelopes into the Cloud Database Index
 print("Uploading vectorized data packets to Azure Cloud Index...")
 search_client = SearchClient(endpoint=SEARCH_ENDPOINT, index_name=INDEX_NAME, credential=AzureKeyCredential(SEARCH_KEY))
+
+# Extract the base file name cleanly from your target file path string
+source_file_basename = os.path.basename(target_file) # Will equal "sample_corp_doc.txt"
 
 # Re-map our dictionary key names slightly to perfectly line up with our schema field names
 cloud_upload_payload = []
@@ -71,7 +82,8 @@ for record in embedded_dataset:
     cloud_upload_payload.append({
         "id": record["id"],
         "content_text": record["content_text"],
-        "content_vector": record["content_vector"]
+        "content_vector": record["content_vector"],
+        "filename": source_file_basename
     })
 
 results = search_client.upload_documents(documents=cloud_upload_payload)

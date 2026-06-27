@@ -10,12 +10,18 @@ fi
 echo "🚀 Spinning up cloud infrastructure with Terraform..."
 terraform -chdir=terrform apply -auto-approve
 
+
+
 echo "🔍 Extracting dynamic keys and endpoints from Terraform state..."
 OPENAI_ENDPOINT=$(terraform -chdir=terrform output -raw openai_endpoint)
 OPENAI_KEY=$(terraform -chdir=terrform output -raw openai_primary_key)
 
 echo "🛑 Cleaning up older container instances if they exist..."
 docker rm -f rag-service-prod 2>/dev/null || true
+
+# 🛠️ FIXED: Rebuild the local Docker image to bake in your new Python logs and code changes!
+echo "📦 Rebuilding application Docker image..."
+docker build --no-cache -t etisalat-ai-gateway:v1 .
 
 echo "🐳 Booting Docker Container with new infrastructure configurations..."
 docker run -d \

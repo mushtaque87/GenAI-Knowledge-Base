@@ -19,7 +19,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # 6. Copy the rest of your local source code into the container
-COPY ./src ./src
+COPY . .
 
 # 7. Expose the networking port to the outside world
 EXPOSE 8000
