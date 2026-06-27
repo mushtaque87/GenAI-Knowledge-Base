@@ -24,19 +24,19 @@ load_dotenv(os.path.join(script_dir, "../.env"))
 
 # 1. Access Credentials for Cloud Search Engine
 SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_URL")   # Paste your Search URL
-SEARCH_KEY = os.getenv("AZURE_SEARCH_KEY")                                   # Paste your Admin Key
+SEARCH_KEY = os.getenv("AZURE_SEARCH_KEY")         # Paste your Admin Key
 INDEX_NAME = os.getenv("AZURE_KNOWLEDGE_INDEX")
 
-# 2. Extract and Prepare the Real Text Data Payload
-target_file = os.path.join(script_dir, "sample_corp_doc.txt")
-document_chunks = read_and_chunk_document(target_file)
-embedded_dataset = generate_vectors_for_chunks(document_chunks)
+# 2. Track, Extract, and Prepare Multiple Data Files Natively
+target_files = [
+    os.path.join(script_dir, "sample_corp_doc.txt"),
+    os.path.join(script_dir, "sample_tesla_doc.txt")  # 🛠️ Added multi-source support
+]
 
 # 3. Connect to the Index Management Client
 index_client = SearchIndexClient(endpoint=SEARCH_ENDPOINT, credential=AzureKeyCredential(SEARCH_KEY))
 
 # 4. Define the Vector Search Parameters
-# We use HNSW (Hierarchical Navigable Small World) - the enterprise standard for fast vector lookups
 vector_search_config = VectorSearch(
     algorithms=[HnswAlgorithmConfiguration(name="myHnswConfig")],
     profiles=[VectorSearchProfile(name="myVectorProfile", algorithm_configuration_name="myHnswConfig")]
@@ -58,7 +58,7 @@ fields = [
 
 index_definition = SearchIndex(name=INDEX_NAME, fields=fields, vector_search=vector_search_config)
 
-# 6. Instantiate the Schema inside Azure Cloud
+# 6. Instantiate the Schema inside Azure Cloud (Drop old layout to apply updates smoothly)
 print(f"Checking for old index '{INDEX_NAME}' to drop...")
 try:
     index_client.delete_index(INDEX_NAME)
@@ -69,22 +69,31 @@ except Exception:
 print(f"Creating fresh search index '{INDEX_NAME}' with 'filename' schema in Azure...")
 index_client.create_or_update_index(index_definition)
 
-# 7. Upload our Data Envelopes into the Cloud Database Index
-print("Uploading vectorized data packets to Azure Cloud Index...")
-search_client = SearchClient(endpoint=SEARCH_ENDPOINT, index_name=INDEX_NAME, credential=AzureKeyCredential(SEARCH_KEY))
-
-# Extract the base file name cleanly from your target file path string
-source_file_basename = os.path.basename(target_file) # Will equal "sample_corp_doc.txt"
-
-# Re-map our dictionary key names slightly to perfectly line up with our schema field names
+# 7. Collect Vectors and Upload Unified Batches to Azure Cloud Index
 cloud_upload_payload = []
-for record in embedded_dataset:
-    cloud_upload_payload.append({
-        "id": record["id"],
-        "content_text": record["content_text"],
-        "content_vector": record["content_vector"],
-        "filename": source_file_basename
-    })
 
+for target_file in target_files:
+    if not os.path.exists(target_file):
+        print(f"⚠️ Warning: File not found at {target_file}. Skipping execution for this target.")
+        continue
+        
+    print(f"📦 Processing, chunking, and embedding: {os.path.basename(target_file)}")
+    document_chunks = read_and_chunk_document(target_file)
+    embedded_dataset = generate_vectors_for_chunks(document_chunks)
+    
+    source_file_basename = os.path.basename(target_file)
+    print(f"   Generated {len(embedded_dataset)} chunks for '{source_file_basename}'")
+    
+    # Map matching dictionary metadata references for this document
+    for record in embedded_dataset:
+        cloud_upload_payload.append({
+            "id": record["id"],
+            "content_text": record["content_text"],
+            "content_vector": record["content_vector"],
+            "filename": source_file_basename  # Enforced lowercase key match
+        })
+
+print(f"📡 Uploading {len(cloud_upload_payload)} vectorized packets across all sources to Azure...")
+search_client = SearchClient(endpoint=SEARCH_ENDPOINT, index_name=INDEX_NAME, credential=AzureKeyCredential(SEARCH_KEY))
 results = search_client.upload_documents(documents=cloud_upload_payload)
-print(f"Successfully uploaded {len(results)} chunks to Azure AI Search Cloud!")
+print(f"🟢 Successfully uploaded {len(results)} chunks to Azure AI Search Cloud!")
