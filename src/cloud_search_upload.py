@@ -11,7 +11,11 @@ from azure.search.documents.indexes.models import (
     SearchFieldDataType,
     VectorSearch,
     HnswAlgorithmConfiguration,
-    VectorSearchProfile
+    VectorSearchProfile,
+    SemanticSearch,
+    SemanticConfiguration,
+    SemanticPrioritizedFields,
+    SemanticField as AzureSemanticField
 )
 # Reuse our prior text processing script logic
 from chunk_and_embed import read_and_chunk_document, generate_vectors_for_chunks
@@ -42,7 +46,19 @@ vector_search_config = VectorSearch(
     profiles=[VectorSearchProfile(name="myVectorProfile", algorithm_configuration_name="myHnswConfig")]
 )
 
-# 5. Design the Database Table Schema Layout
+# 5. Design the Database Table Schema Layout with Semantic Prioritization
+semantic_config = SemanticSearch(
+    configurations=[
+        SemanticConfiguration(
+            name="mySemanticConfig",
+            prioritized_fields=SemanticPrioritizedFields(
+                title_field=AzureSemanticField(field_name="filename"),
+                content_fields=[AzureSemanticField(field_name="content_text")]
+            )
+        )
+    ]
+)
+
 fields = [
     SimpleField(name="id", type=SearchFieldDataType.String, key=True),
     SearchableField(name="content_text", type=SearchFieldDataType.String),
@@ -56,7 +72,7 @@ fields = [
     )
 ]
 
-index_definition = SearchIndex(name=INDEX_NAME, fields=fields, vector_search=vector_search_config)
+index_definition = SearchIndex(name=INDEX_NAME, fields=fields, vector_search=vector_search_config, semantic_search=semantic_config)
 
 # 6. Instantiate the Schema inside Azure Cloud (Drop old layout to apply updates smoothly)
 print(f"Checking for old index '{INDEX_NAME}' to drop...")

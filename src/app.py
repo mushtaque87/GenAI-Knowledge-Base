@@ -79,13 +79,17 @@ async def chat_endpoint(request: QueryRequest):
             k_nearest_neighbors=3,
             fields="content_vector"
         )
-        logger.info("🔍 Initiating match query scan against Azure AI Search index...")
+        logger.info("🔍 Initiating Hybrid Search query with Semantic Reranking...")
 
         search_results = search_client.search(
-            search_text=None,
+            # 1. Providing search_text enables full-text keyword matching alongside vectors (Hybrid)
+            search_text=user_question,
             vector_queries=[vector_query],
-            top=3,
-            select=["content_text", "filename"]
+            top=5,
+            select=["content_text", "filename"],
+            # 2. Instruct Azure to execute its L3 Semantic Ranker
+            query_type="semantic",
+            semantic_configuration_name="mySemanticConfig"
         )
        # Construct an ordered grounding payload array
         retrieved_contexts = []
@@ -94,6 +98,14 @@ async def chat_endpoint(request: QueryRequest):
         # Count total number of retrieved nodes
         row_count = 0
         for idx, doc in enumerate(search_results, start=1):
+            # 🛠️ Catch Azure's semantic reranker score
+            reranker_score = doc.get("@search.rerankerScore")
+
+            # If semantic ranking is on, drop anything below our relevance threshold
+            if reranker_score is not None and reranker_score < 2.0:
+                logger.info(f"⏩ Skipping low-relevance chunk (Score: {reranker_score:.2f}) from file: '{doc.get('filename')}'")
+                continue
+            
             row_count += 1
             text_chunk = doc["content_text"]
             source_file = doc.get("filename", "Unknown_Source_Document.txt")
