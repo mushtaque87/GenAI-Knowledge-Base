@@ -106,7 +106,7 @@ Once the container is running, the API will be available at `http://localhost:80
 Send a JSON body like:
 ```json
 {
-    "query": "What is the capital of France?"
+    "query": "What are the products and offering of Etisalat"
 }
 ```
 The service will:
