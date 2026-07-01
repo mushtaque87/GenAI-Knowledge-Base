@@ -8,8 +8,7 @@ if [ -f .env ]; then
 fi
 
 echo "🚀 Spinning up cloud infrastructure with Terraform..."
-terraform -chdir=terrform apply -auto-approve
-
+terraform -chdir=terrform apply -auto-approve 
 
 
 echo "🔍 Extracting dynamic keys and endpoints from Terraform state..."
