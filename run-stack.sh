@@ -32,6 +32,7 @@ docker run -d \
   -e AZURE_SEARCH_URL="$AZURE_SEARCH_URL" \
   -e AZURE_SEARCH_KEY="$AZURE_SEARCH_KEY" \
   -e AZURE_KNOWLEDGE_INDEX="$AZURE_KNOWLEDGE_INDEX" \
+  -e APPLICATIONINSIGHTS_CONNECTION_STRING="$APPLICATIONINSIGHTS_CONNECTION_STRING" \
   etisalat-ai-gateway:v1
 
 echo "🟢 Stack completely updated and running at http://localhost:8000"
