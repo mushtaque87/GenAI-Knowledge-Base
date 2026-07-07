@@ -10,6 +10,8 @@ load_dotenv(os.path.join(script_dir, "../.env"))
 
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+
 from pydantic import BaseModel, Field
 from openai import AzureOpenAI
 from azure.core.credentials import AzureKeyCredential
@@ -61,6 +63,16 @@ app = FastAPI(
     title="Etisalat Enterprise AI Gateway",
     description="Production-grade API exposing our Azure AI Search and GPT-4.1-mini RAG streaming pipeline.",
     version="1.1.0"
+)
+
+# 🌐 CORS MIDDLEWARE CONFIGURATION
+# This allows your separate React terminal app to talk securely to your backend ports
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, we will lock this down to your specific frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # AUTO-INSTRUMENT FASTAPI LIFECYCLE ROUTING
