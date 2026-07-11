@@ -83,7 +83,7 @@ Alternatively, you can run the commands manually:
 
 ```bash
 # Build the image
-docker build -t etisalat-ai-gateway:v1 .
+docker build -t genai-knowledge-base:v1 .
 
 # Run the container
 docker run -d \
@@ -95,7 +95,7 @@ docker run -d \
   -e AZURE_SEARCH_URL="$AZURE_SEARCH_URL" \
   -e AZURE_SEARCH_KEY="$AZURE_SEARCH_KEY" \
   -e AZURE_KNOWLEDGE_INDEX="$AZURE_KNOWLEDGE_INDEX" \
-  etisalat-ai-gateway:v1
+  genai-knowledge-base:v1
 ```
 
 ## 🧪 Testing
