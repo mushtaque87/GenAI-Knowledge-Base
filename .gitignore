@@ -11,3 +11,5 @@ crash.*.log
 .terraform/
 .terraformrc
 terraform.rc
+ui/node_modules/.bin/browserslist
+/ui/node_modules
