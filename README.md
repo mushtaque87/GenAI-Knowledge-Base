@@ -101,6 +101,8 @@ docker run -d \
 ## 🧪 Testing
 Once the container is running, the API will be available at `http://localhost:8000`.
 
+![Alt text](aichatwindow.png)
+
 **GET**: `http://localhost:8000/chat`
 
 Send a JSON body like:
@@ -115,3 +117,8 @@ The service will:
 3. Use the Semantic Reranker to refine results.
 4. Generate an answer using GPT-4.1-mini.
 5. Return the answer along with citations and logs.
+
+## 🧪 Open Telemetry
+You can check the system performance using Azure OpenTelemetry and Application Insights.
+
+![Alt text](opentelemetry.png)
