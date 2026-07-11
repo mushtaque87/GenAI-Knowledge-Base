@@ -20,7 +20,7 @@ docker rm -f rag-service-prod 2>/dev/null || true
 
 # 🛠️ FIXED: Rebuild the local Docker image to bake in your new Python logs and code changes!
 echo "📦 Rebuilding application Docker image..."
-docker build --no-cache -t etisalat-ai-gateway:v1 .
+docker build --no-cache -t genai-knowledge-base:v1 .
 
 echo "🐳 Booting Docker Container with new infrastructure configurations..."
 docker run -d \
@@ -33,6 +33,6 @@ docker run -d \
   -e AZURE_SEARCH_KEY="$AZURE_SEARCH_KEY" \
   -e AZURE_KNOWLEDGE_INDEX="$AZURE_KNOWLEDGE_INDEX" \
   -e APPLICATIONINSIGHTS_CONNECTION_STRING="$APPLICATIONINSIGHTS_CONNECTION_STRING" \
-  etisalat-ai-gateway:v1
+  genai-knowledge-base:v1
 
 echo "🟢 Stack completely updated and running at http://localhost:8000"

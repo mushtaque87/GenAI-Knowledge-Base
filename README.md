@@ -83,7 +83,7 @@ Alternatively, you can run the commands manually:
 
 ```bash
 # Build the image
-docker build -t etisalat-ai-gateway:v1 .
+docker build -t genai-knowledge-base:v1 .
 
 # Run the container
 docker run -d \
@@ -95,11 +95,13 @@ docker run -d \
   -e AZURE_SEARCH_URL="$AZURE_SEARCH_URL" \
   -e AZURE_SEARCH_KEY="$AZURE_SEARCH_KEY" \
   -e AZURE_KNOWLEDGE_INDEX="$AZURE_KNOWLEDGE_INDEX" \
-  etisalat-ai-gateway:v1
+  genai-knowledge-base:v1
 ```
 
 ## 🧪 Testing
 Once the container is running, the API will be available at `http://localhost:8000`.
+
+![Alt text](aichatwindow.png)
 
 **GET**: `http://localhost:8000/chat`
 
@@ -115,3 +117,8 @@ The service will:
 3. Use the Semantic Reranker to refine results.
 4. Generate an answer using GPT-4.1-mini.
 5. Return the answer along with citations and logs.
+
+## 🧪 Open Telemetry
+You can check the system performance using Azure OpenTelemetry and Application Insights.
+
+![Alt text](opentelemetry.png)

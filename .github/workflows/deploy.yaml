@@ -2,9 +2,9 @@ name: Enterprise AI Gateway CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
       - name: Set up Python Runtime
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       # Step C: Install dependencies
       - name: Install Project Dependencies
@@ -40,7 +40,7 @@ jobs:
       # Step E: Build the Docker image (for verification)
       - name: Build Verification Docker Image
         run: |
-          docker build -t etisalat-ai-gateway:${{ github.sha }} -f src/Dockerfile .
+          docker build -t genai-knowledge-base:${{ github.sha }} -f src/Dockerfile .
           echo "✅ Docker build compilation passed successfully!"
 
   deploy:
