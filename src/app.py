@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import asyncio  # 👈 Added missing import for safe_stream_wrapper execution
 from dotenv import load_dotenv
 
 # Resolve directory paths relative to this script
@@ -8,7 +9,8 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 # Load variables from root .env file
 load_dotenv(os.path.join(script_dir, "../.env"))
 
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException
+import contextvars
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,6 +24,7 @@ from azure.search.documents.models import VectorizedQuery
 from azure.monitor.opentelemetry import configure_azure_monitor
 from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
 
 # 1. Configure the system logger framework
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -32,6 +35,8 @@ logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(l
 logging.getLogger("azure.monitor.opentelemetry.exporter").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+
+AsyncioInstrumentor().instrument()
 
 # 🛠️ EXTRACT AND CHECK THE CONNECTION STRING BEFORE INITIALIZATION
 AI_CONN_STR = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
@@ -98,6 +103,22 @@ search_client = SearchClient(
 class QueryRequest(BaseModel):
     question: str = Field(..., example="What digital broadband services does Etisalat provide?")
 
+async def safe_stream_wrapper(async_gen):
+    """
+    Wraps the streaming generator to ensure contextvars 
+    don't bleed incorrectly across the async iterator boundary.
+    """
+    ctx = contextvars.copy_context()
+    try:
+        async for chunk in async_gen:
+            # Yield the chunk within a clean runtime context execution
+            yield await asyncio.get_running_loop().run_in_executor(
+                None, ctx.run, lambda: chunk
+            )
+    except Exception as e:
+        logger.error(f"Error during safe stream iteration: {e}")
+        raise
+
 # 4. Create the Core Chat Streaming Endpoint
 @app.post("/api/v1/chat", summary="Query the Cloud Knowledge Base with Real-Time Streaming Chunks")
 async def chat_endpoint(request: QueryRequest):
@@ -162,12 +183,13 @@ async def chat_endpoint(request: QueryRequest):
             filter_span.set_attribute("search.total_hits", row_count + skipped_count)
             filter_span.set_attribute("search.accepted_hits", row_count)
 
-        # Fallback guard clause for empty contexts
+        # Fallback guard clause for empty contexts (Fixed syntax block)
         if not retrieved_contexts:
             logger.warning(f"⚠️ Zero matching nodes returned from database for query: '{user_question}'")
-            def empty_generator():
-                yield "data: " + json.dumps({"answer": "I cannot find this information in my corporate documents.", "sources": []}) + "\n\n"
-            return StreamingResponse(empty_generator(), media_type="text/event-stream")
+            async def empty_generator():
+                yield f"data: {json.dumps({'token': 'I cannot find this information in my corporate documents.', 'sources': []})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'sources': []})}\n\n"
+            return StreamingResponse(safe_stream_wrapper(empty_generator()), media_type="text/event-stream")
 
         full_grounding_context = "\n".join(retrieved_contexts)
         sources_list = list(unique_source_files)
@@ -185,7 +207,7 @@ async def chat_endpoint(request: QueryRequest):
         user_payload = f"Context from Live Azure Database:\n{full_grounding_context}\n\nQuestion: {user_question}"
 
         # 🚀 Use standard generator framework for streaming text tokens (FastAPI runs this in a background threadpool)
-        def response_stream_generator():
+        async def response_stream_generator():
             # Create a separate child trace span tracking LLM response duration metrics
             with tracer.start_as_current_span("llm_answer_generation") as llm_span:
                 logger.info("🧠 Initializing continuous asynchronous pipeline chunk stream generation...")
@@ -212,7 +234,8 @@ async def chat_endpoint(request: QueryRequest):
                 yield f"data: {json.dumps({'done': True, 'sources': sources_list})}\n\n"
                 logger.info("🟢 Token chunk stream tracking pipeline processing completed successfully.")
 
-        return StreamingResponse(response_stream_generator(), media_type="text/event-stream")
+        # Wrapped the primary response stream in the safe_stream_wrapper as well
+        return StreamingResponse(safe_stream_wrapper(response_stream_generator()), media_type="text/event-stream")
 
     except Exception as e:
         logger.error(f"❌ Critical Endpoint Crash Encountered: {str(e)}", exc_info=True)
