@@ -74,6 +74,56 @@ resource "azurerm_cognitive_deployment" "chat" {
   }
 }
 
+# 7. Operational Logging Layer for the Container App Environment
+resource "azurerm_log_analytics_workspace" "log_analytics" {
+  name                = "log-genai-gateway-prod"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+}
+
+# 8. Container App Hosting Cluster Environment
+resource "azurerm_container_app_environment" "app_env" {
+  name                       = "cae-genai-gateway-prod"
+  location                   = azurerm_resource_group.rg.location
+  resource_group_name        = azurerm_resource_group.rg.name
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.log_analytics.id
+}
+
+# 9. Main Application Container Block Configuration
+resource "azurerm_container_app" "ai_gateway" {
+  name                         = "genai-knowledge-base"
+  container_app_environment_id = azurerm_container_app_environment.app_env.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Multiple"
+
+  ingress {
+    external_enabled = true
+    target_port      = 8000
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  template {
+    container {
+      name   = "gateway-engine"
+      image  = "docker.io/mushtaque87/genai-knowledge-base:v1" # Points directly to Docker Hub
+      cpu    = "0.5"
+      memory = "1.0Gi"
+
+      readiness_probe {
+        transport = "HTTP"
+        port      = 8000
+        path      = "/health"
+      }
+    }
+  }
+}
+
+# ==================== OUTPUTS ====================
 
 output "openai_endpoint" {
   value       = azurerm_cognitive_account.openai.endpoint
@@ -84,4 +134,9 @@ output "openai_primary_key" {
   value       = azurerm_cognitive_account.openai.primary_access_key
   sensitive   = true
   description = "The primary access key for the new OpenAI instance"
+}
+
+output "container_app_url" {
+  value       = "https://${azurerm_container_app.ai_gateway.ingress[0].fqdn}/docs"
+  description = "The public verification URL for the interactive Swagger UI API documentation."
 }
