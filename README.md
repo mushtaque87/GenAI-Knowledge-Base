@@ -29,6 +29,8 @@ GenAI-Knowledge-Base/
 ├── Dockerfile
 ├── requirements.txt
 └── .env                      # Local environment variables
+├── run-stack.sh              # Local development script
+└── deploy-prod.sh            # Production compilation and deployment script
 ```
 
 ## ⚙️ Setup & Configuration
@@ -122,3 +124,15 @@ The service will:
 You can check the system performance using Azure OpenTelemetry and Application Insights.
 
 ![Alt text](opentelemetry.png)
+
+### 2. High-Scale Architecture Diagram
+
+To handle 10,000 concurrent users and 1 million requests securely without encountering throttling or latency spikes, use the following architectural pattern:
+
+
+#### Key Architectural Highlights:
+1. **The Core Gateway (APIM):** Sits directly in front of your LLMs to balance traffic across multiple Azure OpenAI instances deployed in different regions, effectively pooling your available Tokens Per Minute (TPM).
+2. **KEDA Concurrent Auto-Scaling:** Your Azure Container Apps track active *HTTP concurrency* rules rather than traditional CPU/Memory thresholds.
+3. **AI Search Replica Balancing:** Horizontal replicas share the read/query retrieval overhead to support massive volumes of simultaneous vector searches.
+
+---
